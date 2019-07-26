@@ -1,0 +1,75 @@
+'use strict';
+
+/*
+function createModel(modelName) {
+  datasource.discoverSchema(modelName, function (err, schema) {
+    if (err) throw err;
+    writeFile(schema);
+  });
+}
+
+function replaceProperties(data) {
+  let tableName;
+
+  if (data.mysql)
+    tableName = data.mysql.table;
+  else
+    tableName = data.name;
+
+  datasource.discoverSchema(tableName, function (err, schema) {
+    if (err) throw err;
+
+    let d_prop = data.properties;
+    let s_prop = schema.properties;
+
+    // delete properties not in schema
+    for (const column of Object.keys(d_prop)) {
+      if (!s_prop[column]) {
+        delete d_prop[column];
+        console.log('Deleted ' + column);
+      }
+    }
+
+    // add properties not in model
+    for (const column of Object.keys(s_prop)) {
+      if (!d_prop[column]) {
+        d_prop[column] = s_prop[column];
+        console.log('Added ' + column);
+      } else {
+        // only replace property details that already exist
+        for (const property of Object.keys(s_prop[column])) {
+          if (commander.properties) {
+            d_prop[column] = s_prop[column];
+          } else if (d_prop[column][property]) {
+            d_prop[column][property] = s_prop[column][property];
+            console.log('Updated ' + column + '.' + property);
+          }
+        }
+      }
+    }
+    return data;
+  });
+}
+
+function DeleteExtraModels() {
+  datasource.discoverModelDefinitions({schema: datasource.settings.database}, (err, result) => {
+    if (err) throw err;
+  });
+}
+
+function readFile(modelName) {
+  // check if file exists
+  fs.access('common/models/' + modelName + '.json', fs.F_OK, (err) => {
+    // create the model if it doesn't exist
+    if (err)
+      return modelName;
+    // read and parse the model if it exists
+    else {
+      fs.readFile('common/models/' + modelName + '.json', (err, buffer) => {
+        if (err) throw err;
+        return JSON.parse(buffer);
+      });
+    }
+  });
+}
+*/
