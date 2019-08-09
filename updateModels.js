@@ -6,8 +6,10 @@ const fs = require('fs');
 const commander = require('commander');
 const defaultProperties = ['type', 'required', 'length', 'id'];
 
-function readFile(fileName) {
+function readFile(modelName) {
   return new Promise((resolve, reject) => {
+    // filenames are in hyphen separated format
+    const fileName = PascalToHyphen(modelName);
     fs.readFile('common/models/' + fileName + '.json', 'utf8', (err, buffer) => {
       if (err) {
         console.log(fileName + '.json does not exist, use -a option to add new models');
@@ -17,6 +19,10 @@ function readFile(fileName) {
       resolve(JSON.parse(buffer));
     });
   });
+};
+
+function createModel(modelName, databaseName) {
+  // TODO
 }
 
 function defaultReplace(originalModel, databaseName) {
@@ -27,7 +33,7 @@ function defaultReplace(originalModel, databaseName) {
     tableName = originalModel[databaseName].table;
   // if not, use underscore format
   else
-    tableName = camelToUnderscore(originalModel.name);
+    tableName = PascalToUnderscore(originalModel.name);
 
   console.log('database table name found: ' + tableName);
 
@@ -56,28 +62,70 @@ function defaultReplace(originalModel, databaseName) {
   });
 }
 
-function camelToHyphen(modelName) {
+function discoverDatabaseModels(databaseName) {
+  return new Promise((resolve, reject) => {
+    datasources[databaseName].discoverModelDefinitions({owner: datasources[databaseName].settings.database}, (err, result) => {
+      if (err) {
+        console.error(err);
+        reject();
+      }
+      resolve(result);
+    });
+  });
+}
+
+function PascalToHyphen(modelName) {
   return modelName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-function camelToUnderscore(modelName) {
+function PascalToUnderscore(modelName) {
   return modelName.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
 }
 
+function UnderscoreToPascal(tableName) {
+  // TODO
+}
+
 function writeFile(newModel) {
-  fs.writeFileSync('common/models/' + camelToHyphen(newModel.name) + '.json', JSON.stringify(newModel, null, 2));
+  fs.writeFileSync('common/models/' + PascalToHyphen(newModel.name) + '.json', JSON.stringify(newModel, null, 2));
   console.log('-------------------------------');
   console.log('Model JSON file update complete');
 }
 
 async function commanderHandler(databaseName, modelNames) {
+  // add or update models
+  if (commander.add) {
+    // discover databases
+    const modelDefinitionArray = await discoverDatabaseModels(databaseName);
+    for (const modelDefinition of modelDefinitionArray) {
+      const modelName = UnderscoreToPascal(modelDefinition.name);
+      // model file already exists
+      if (app.models[modelDefinition.name]) {
+        // TODO: write function underscore to pascal for modelDefinition.name
+        const originalModels = await readFile(modelName);
+        if (originalModels) {
+          const newModel = await defaultReplace(originalModels, databaseName);
+          if (newModel) {
+            writeFile(newModel);
+          }
+        }
+        // model file doesn't exist
+      } else {
+        const newModel = await createModel(modelName, databaseName);
+        if (newModel) {
+          writeFile(newModel);
+        }
+      }
+    }
+  } else {
   // no options selected
-  for (const modelName of modelNames) {
-    const originalModel = await readFile(camelToHyphen(modelName));
-    if (originalModel) {
-      const newModel = await defaultReplace(originalModel, databaseName);
-      if (newModel) {
-        writeFile(newModel);
+    for (const modelName of modelNames) {
+      const originalModels = await readFile(modelName);
+      if (originalModels) {
+        const newModel = await defaultReplace(originalModels, databaseName);
+        if (newModel) {
+          writeFile(newModel);
+        }
       }
     }
   }
