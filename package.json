@@ -1,0 +1,19 @@
+{
+  "name": "lb-update",
+  "version": "1.0.0",
+  "description": "Script to update and add models through loopback using the database",
+  "main": "updateModels.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JimmyLiu8351/lb-update.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JimmyLiu8351/lb-update/issues"
+  },
+  "homepage": "https://github.com/JimmyLiu8351/lb-update#readme"
+}

@@ -68,8 +68,8 @@ function defaultReplace(originalModel, databaseName) {
   let tableName;
 
   // check if tablename is defined in model
-  if (originalModel[databaseName])
-    tableName = originalModel[databaseName].table;
+  if (originalModel.mysql.table)
+    tableName = originalModel.mysql.table;
   // if not, use underscore format
   else
     tableName = PascalToUnderscore(originalModel.name);
