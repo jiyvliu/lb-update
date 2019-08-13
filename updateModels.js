@@ -45,6 +45,12 @@ function createModel(modelName, databaseName) {
         throw new Error('Unable to access database: ' + databaseName);
       } else {
         for (const property of Object.keys(schema.properties)) {
+          // change property name from camelCased to underscore_separated
+          if (CamelToUnderscore(property) !== property) {
+            schema.properties[CamelToUnderscore(property)] = schema.properties[property];
+            delete schema.properties[property];
+            property = CamelToUnderscore(property);
+          }
           console.log('Added property ' + property + ' to ' + modelName);
           for (const setting of Object.keys(schema.properties[property])) {
             if (!defaultProperties.includes(setting) || commander.properties) {
@@ -75,9 +81,15 @@ function defaultReplace(originalModel, databaseName) {
       if (err) {
         throw new Error(tableName + ' does not exist in database ' + databaseName);
       } else {
-      // Go through properties in schema
-        for (const property of Object.keys(schema.properties)) {
-        // create properties that don't exist in model
+        // Go through properties in schema
+        for (let property of Object.keys(schema.properties)) {
+          // change property name from camelCased to underscore_separated
+          if (CamelToUnderscore(property) !== property) {
+            schema.properties[CamelToUnderscore(property)] = schema.properties[property];
+            delete schema.properties[property];
+            property = CamelToUnderscore(property);
+          }
+          // create properties that don't exist in model
           if (!originalModel.properties[property]) {
             originalModel.properties[property] = {};
           }
@@ -88,6 +100,13 @@ function defaultReplace(originalModel, databaseName) {
               originalModel.properties[property][setting] = schema.properties[property][setting];
               console.log('Updated model: ' + originalModel.name + ', Property: ' + property + ', Setting: ' + setting);
             }
+          }
+        }
+        // delete properties not in database
+        for (const property of Object.keys(originalModel.properties)) {
+          if (!Object.keys(schema.properties).includes(property)) {
+            console.log('Deleted property ' + property + ' of model ' + originalModel.name);
+            delete originalModel.properties[property];
           }
         }
         resolve(originalModel);
@@ -124,6 +143,10 @@ function UnderscoreToPascal(tableName) {
   return PascalCased;
 }
 
+function CamelToUnderscore(CamelCased) {
+  return CamelCased.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
 function writeFile(newModelObject) {
   fs.writeFileSync('common/models/' + PascalToHyphen(newModelObject.name) + '.json', JSON.stringify(newModelObject, null, 2));
   console.log(newModelObject.name + ' JSON file update complete');
@@ -151,10 +174,40 @@ function deleteFile(modelName) {
   });
 }
 
-async function updateHandler(databaseName, modelNames) {
-  if (commander.update) {
+async function commanderHandler(databaseName, modelNames) {
+  // add or add all models
+  if (commander.add || commander.addEveryModel) {
+    console.log('Adding new models');
+    const modelConfigObject = await readConfigFile();
+    // discover databases
+    const modelDefinitionArray = await discoverDatabaseModels(databaseName);
+    for (const modelDefinition of modelDefinitionArray) {
+      const modelNameFromDatabase = UnderscoreToPascal(modelDefinition.name);
+      // Only update requested models unless user wants to add all models
+      if (!modelNames.includes(modelNameFromDatabase) && !commander.addEveryModel) {
+        continue;
+      }
+      // model already exists
+      if (app.models[modelNameFromDatabase]) {
+        console.log(modelNameFromDatabase + ' already exists, use default command or -u to update, continuing to next model');
+        continue;
+      // model file doesn't exist, then add it
+      } else {
+        const newModel = await createModel(modelNameFromDatabase, databaseName);
+        if (newModel) {
+          writeFile(newModel);
+        }
+        // add model to model-config
+        modelConfigObject[modelNameFromDatabase] = {dataSource: databaseName, public: true};
+        console.log(modelNameFromDatabase + ' added to model-config file');
+      }
+    }
+    // write model-config file
+    writeConfigFile(modelConfigObject);
+  // update all models
+  } else if (commander.update) {
     for (const modelName of Object.keys(app.models)) {
-    // model has to use datasource databaseName or it won't update
+      // model has to use datasource databaseName or it won't update
       if (app.models[modelName].config.dataSource.name === databaseName) {
         const originalModels = await readModelFile(modelName);
         if (originalModels) {
@@ -165,8 +218,35 @@ async function updateHandler(databaseName, modelNames) {
         }
       }
     }
-  // no options
+  // delete extra models
+  } else if (commander.delete) {
+    console.log('The -d --delete option will delete models that have the datasource of the database but does not exist in the database. Continue?');
+    standard_input.on('data', async function(data) {
+      if (data.toString().trim() === 'yes' || data.toString().trim() === 'y') {
+        const modelConfigObject = await readConfigFile();
+        // discover databases
+        const modelDefinitionArray = await discoverDatabaseModels(databaseName);
+        const modelNamesFromDatabase = [];
+        for (const rowPacket of modelDefinitionArray) {
+          modelNamesFromDatabase.push(UnderscoreToPascal(rowPacket.name));
+        }
+        for (const modelName of Object.keys(app.models)) {
+          // model doesn't exist in database and the model has datasource databaseName
+          if (!modelNamesFromDatabase.includes(modelName) && app.models[modelName].config.dataSource.name === databaseName) {
+            console.log('Deleting model ' + modelName);
+            // TODO: Should I add a sleep interval here to give the use time to cancel?
+            await deleteFile(modelName);
+            delete modelConfigObject[modelName];
+          }
+        }
+        writeConfigFile(modelConfigObject);
+      } else {
+        console.log('Exiting');
+        process.exitCode = 0;
+      }
+    });
   } else {
+  // no options selected
     for (const modelName of modelNames) {
       const originalModels = await readModelFile(modelName);
       if (originalModels) {
@@ -179,84 +259,15 @@ async function updateHandler(databaseName, modelNames) {
   }
 }
 
-async function addHandler(databaseName, modelNames) {
-  console.log('Adding new models');
-  const modelConfigObject = await readConfigFile();
-    // discover databases
-  const modelDefinitionArray = await discoverDatabaseModels(databaseName);
-  for (const modelDefinition of modelDefinitionArray) {
-    const modelNameFromDatabase = UnderscoreToPascal(modelDefinition.name);
-      // Only update requested models unless user wants to add all models
-    if (!modelNames.includes(modelNameFromDatabase) && !commander.addEveryModel) {
-      continue;
-    }
-      // model already exists
-    if (app.models[modelNameFromDatabase]) {
-      console.log(modelNameFromDatabase + ' already exists, use default command or -u to update, continuing to next model');
-      continue;
-      // model file doesn't exist, then add it
-    } else {
-      const newModel = await createModel(modelNameFromDatabase, databaseName);
-      if (newModel) {
-        writeFile(newModel);
-      }
-        // add model to model-config
-      modelConfigObject[modelNameFromDatabase] = {dataSource: databaseName, public: true};
-      console.log(modelNameFromDatabase + ' added to model-config file');
-    }
-  }
-    // write model-config file
-  writeConfigFile(modelConfigObject);
-}
-
-async function deleteHandler(databaseName, modelNames) {
-  console.log('The -d --delete option will delete models that have the datasource of the database but does not exist in the database. Continue?');
-  standard_input.on('data', async function(data) {
-    if (data.toString().trim() === 'yes' || data.toString().trim() === 'y') {
-      const modelConfigObject = await readConfigFile();
-        // discover databases
-      const modelDefinitionArray = await discoverDatabaseModels(databaseName);
-      const modelNamesFromDatabase = [];
-      for (const rowPacket of modelDefinitionArray) {
-        modelNamesFromDatabase.push(UnderscoreToPascal(rowPacket.name));
-      }
-      for (const modelName of Object.keys(app.models)) {
-          // model doesn't exist in database and the model has datasource databaseName
-        if (!modelNamesFromDatabase.includes(modelName) && app.models[modelName].config.dataSource.name === databaseName) {
-          console.log('Deleting model ' + modelName);
-            // TODO: Should I add a sleep interval here to give the use time to cancel?
-          await deleteFile(modelName);
-          delete modelConfigObject[modelName];
-        }
-      }
-      writeConfigFile(modelConfigObject);
-    } else {
-      console.log('Exiting');
-      process.exitCode = 0;
-    }
-  });
-}
-
 commander
-  .command('update <databaseName> [modelName...]')
+  .description('An npm module to automatically update Loopback models according to schema')
+  .arguments('<databaseName> [modelNames...]')
   .option('-u, --update', 'update all models')
-  .option('-p, --properties', 'update and add all non-default properties')
-  .action((databaseName, modelNames) => {
-    updateHandler(databaseName, modelNames);
-  });
-
-commander
-  .command('add <databaseName> [modelName...]')
+  .option('-a, --add', 'adds stated models from database')
   .option('-e, --addEveryModel', 'add all models from the database')
   .option('-p, --properties', 'update and add all non-default properties')
+  .option('-d, --delete', 'delete models and properties that are not in database')
   .action((databaseName, modelNames) => {
-    addHandler(databaseName, modelNames);
-  });
-
-commander
-  .command('delete <databaseName>')
-  .action((databaseName) => {
-    deleteHandler(databaseName);
-  });
-
-commander.parse(process.argv);
+    commanderHandler(databaseName, modelNames);
+  })
+  .parse(process.argv);
