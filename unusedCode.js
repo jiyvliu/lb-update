@@ -72,4 +72,17 @@ function readFile(modelName) {
     }
   });
 }
+
+commander
+  .description('An npm module to automatically update Loopback models according to schema')
+  .arguments('<databaseName> [modelNames...]')
+  .option('-u, --update', 'update all models')
+  .option('-a, --add', 'adds stated models from database')
+  .option('-e, --addEveryModel', 'add all models from the database')
+  .option('-p, --properties', 'update and add all non-default properties')
+  .option('-d, --delete', 'delete models and properties that are not in database')
+  .action((databaseName, modelNames) => {
+    commanderHandler(databaseName, modelNames);
+  })
+  .parse(process.argv);
 */
