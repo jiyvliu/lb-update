@@ -5,6 +5,8 @@ const datasources = app.datasources;
 const fs = require('fs');
 const commander = require('commander');
 const defaultProperties = ['type', 'required', 'length', 'id'];
+const standard_input = process.stdin;
+standard_input.setEncoding('utf-8');
 
 function readModelFile(modelName) {
   return new Promise((resolve, reject) => {
@@ -80,7 +82,9 @@ function defaultReplace(originalModel, databaseName) {
             originalModel.properties[property] = {};
           }
           for (const setting of Object.keys(schema.properties[property])) {
-            if (defaultProperties.includes(setting) || commander.properties) {
+            // if the property settings are already the same, don't update
+            if ((defaultProperties.includes(setting) || commander.properties) &&
+                originalModel.properties[property][setting] !== schema.properties[property][setting]) {
               originalModel.properties[property][setting] = schema.properties[property][setting];
               console.log('Updated model: ' + originalModel.name + ', Property: ' + property + ', Setting: ' + setting);
             }
@@ -120,15 +124,31 @@ function UnderscoreToPascal(tableName) {
   return PascalCased;
 }
 
-function writeFile(newModel) {
-  fs.writeFileSync('common/models/' + PascalToHyphen(newModel.name) + '.json', JSON.stringify(newModel, null, 2));
+function writeFile(newModelObject) {
+  fs.writeFileSync('common/models/' + PascalToHyphen(newModelObject.name) + '.json', JSON.stringify(newModelObject, null, 2));
+  console.log(newModelObject.name + ' JSON file update complete');
   console.log('-------------------------------');
-  console.log(newModel.name + ' JSON file update complete');
 }
 
 function writeConfigFile(modelConfigObject) {
   fs.writeFileSync('./server/model-config.json', JSON.stringify(modelConfigObject, null, 2));
-  console.log('Model-config file update complete');
+  console.log('model-config.json file update complete');
+}
+
+function deleteFile(modelName) {
+  return new Promise((resolve, reject) => {
+    const fileName = PascalToHyphen(modelName);
+    fs.unlink('common/models/' + fileName + '.json', (err) => {
+      if (err) throw new Error('Could not delete model file ' + fileName + '.json');
+    });
+    fs.exists('common/models/' + fileName + '.js', (err) => {
+      if (err) resolve();
+      fs.unlink('common/models/' + fileName + '.js', (err) => {
+        if (err) throw new Error('Could not delete model file ' + fileName + '.js');
+      });
+    });
+    resolve();
+  });
 }
 
 async function commanderHandler(databaseName, modelNames) {
@@ -164,10 +184,44 @@ async function commanderHandler(databaseName, modelNames) {
   // update all models
   } else if (commander.update) {
     for (const modelName of Object.keys(app.models)) {
-      if (app.models[modelName].config.dataSource.name !== databaseName)
-        continue;
-      console.log(modelName + ' is suppose to be updated here but it\'s not implemented yet');
+      // model has to use datasource databaseName or it won't update
+      if (app.models[modelName].config.dataSource.name === databaseName) {
+        const originalModels = await readModelFile(modelName);
+        if (originalModels) {
+          const newModel = await defaultReplace(originalModels, databaseName);
+          if (newModel) {
+            writeFile(newModel);
+          }
+        }
+      }
     }
+  // delete extra models
+  } else if (commander.delete) {
+    console.log('The -d --delete option will delete models that have the datasource of the database but does not exist in the database. Continue?');
+    standard_input.on('data', async function(data) {
+      if (data.toString().trim() === 'yes' || data.toString().trim() === 'y') {
+        const modelConfigObject = await readConfigFile();
+        // discover databases
+        const modelDefinitionArray = await discoverDatabaseModels(databaseName);
+        const modelNamesFromDatabase = [];
+        for (const rowPacket of modelDefinitionArray) {
+          modelNamesFromDatabase.push(UnderscoreToPascal(rowPacket.name));
+        }
+        for (const modelName of Object.keys(app.models)) {
+          // model doesn't exist in database and the model has datasource databaseName
+          if (!modelNamesFromDatabase.includes(modelName) && app.models[modelName].config.dataSource.name === databaseName) {
+            console.log('Deleting model ' + modelName);
+            // TODO: Should I add a sleep interval here to give the use time to cancel?
+            await deleteFile(modelName);
+            delete modelConfigObject[modelName];
+          }
+        }
+        writeConfigFile(modelConfigObject);
+      } else {
+        console.log('Exiting');
+        process.exitCode = 0;
+      }
+    });
   } else {
   // no options selected
     for (const modelName of modelNames) {
