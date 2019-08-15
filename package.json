@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/JimmyLiu8351/lb-update/issues"
   },
-  "homepage": "https://github.com/JimmyLiu8351/lb-update#readme"
+  "homepage": "https://github.com/JimmyLiu8351/lb-update#readme",
+  "bin": {
+    "lb-update": "./updateModels.js"
+  }
 }
