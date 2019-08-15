@@ -17,6 +17,9 @@
   },
   "homepage": "https://github.com/JimmyLiu8351/lb-update#readme",
   "bin": {
-    "lb-update": "./updateModels.js"
+    "lb-update": "./lb-update.js"
+  },
+  "dependencies": {
+    "commander": "^3.0.0"
   }
 }
