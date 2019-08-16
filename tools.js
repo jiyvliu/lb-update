@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 'use strict';
 
+// TODO fix path for common/models
+const path = require('path');
+const pkag = require('./package.json');
+const models_path = path.join(pkag._where, 'common', 'models')
 const fs = require('fs');
 
 function readModelFile(modelName) {
   return new Promise((resolve, reject) => {
     // filenames are in hyphen separated format
     const fileName = PascalToHyphen(modelName);
-    fs.readFile('common/models/' + fileName + '.json', 'utf8', (err, buffer) => {
+    fs.readFile(path.join(models_path, fileName + '.json'), 'utf8', (err, buffer) => {
       if (err) {
         throw new Error(fileName + '.json does not exist, use add command to add new models');
       } else {
@@ -20,7 +24,7 @@ function readModelFile(modelName) {
 
 function readConfigFile() {
   return new Promise((resolve, reject) => {
-    fs.readFile('server/model-config.json', (err, buffer) => {
+    fs.readFile(pkag._where + '/server/model-config.json', (err, buffer) => {
       if (err) {
         throw new Error('Could not read model-config.json');
       } else {
@@ -52,13 +56,13 @@ function CamelToUnderscore(CamelCased) {
 }
 
 function writeModelFile(newModelObject) {
-  fs.writeFileSync('common/models/' + PascalToHyphen(newModelObject.name) + '.json', JSON.stringify(newModelObject, null, 2));
+  fs.writeFileSync(path.join(models_path, PascalToHyphen(newModelObject.name) + '.json'), JSON.stringify(newModelObject, null, 2));
   console.log(newModelObject.name + ' JSON file update complete');
   console.log('-------------------------------');
 }
 
 function writeConfigFile(modelConfigObject) {
-  fs.writeFileSync('server/model-config.json', JSON.stringify(modelConfigObject, null, 2));
+  fs.writeFileSync(pkag._where + '/server/model-config.json', JSON.stringify(modelConfigObject, null, 2));
   console.log('model-config.json file update complete');
 }
 

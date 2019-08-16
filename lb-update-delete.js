@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const app = require('server/server');
+const path = require('path');
+const pkag = require('./package.json');
+const app = require(path.join(pkag._where, 'server/server'));
 const datasources = app.datasources;
 const fs = require('fs');
 const commander = require('commander');

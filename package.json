@@ -1,6 +1,6 @@
 {
   "name": "lb-update",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Script to update and add models through loopback using the database",
   "main": "lb-update.js",
   "scripts": {
