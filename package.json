@@ -1,8 +1,8 @@
 {
   "name": "lb-update",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Script to update and add models through loopback using the database",
-  "main": "updateModels.js",
+  "main": "lb-update.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

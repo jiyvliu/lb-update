@@ -20,7 +20,7 @@ function readModelFile(modelName) {
 
 function readConfigFile() {
   return new Promise((resolve, reject) => {
-    fs.readFile('./server/model-config.json', (err, buffer) => {
+    fs.readFile('server/model-config.json', (err, buffer) => {
       if (err) {
         throw new Error('Could not read model-config.json');
       } else {
@@ -58,7 +58,7 @@ function writeModelFile(newModelObject) {
 }
 
 function writeConfigFile(modelConfigObject) {
-  fs.writeFileSync('./server/model-config.json', JSON.stringify(modelConfigObject, null, 2));
+  fs.writeFileSync('server/model-config.json', JSON.stringify(modelConfigObject, null, 2));
   console.log('model-config.json file update complete');
 }
 

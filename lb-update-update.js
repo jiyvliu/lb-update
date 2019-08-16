@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const app = require('./server/server');
+const app = require('server/server');
 const datasources = app.datasources;
 const commander = require('commander');
 const defaultProperties = ['type', 'required', 'length', 'id'];

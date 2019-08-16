@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const app = require('./server/server');
+const app = require('server/server');
 const datasources = app.datasources;
 const fs = require('fs');
 const commander = require('commander');
