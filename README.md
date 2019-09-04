@@ -2,6 +2,12 @@
 
 Script to update and add models through loopback using a mysql database
 
+Installation:
+
+```bash
+npm install lb-update
+```
+
 Naming conventions:
 
 * Database tables: underscore_separated
